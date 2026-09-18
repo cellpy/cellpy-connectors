@@ -10,7 +10,13 @@ current issue**. `/iflow-doctor` may audit the whole suite against this table.
 
 | Test (node id or path::name) | Essential? | Always? | Code under test | Issue | Notes / demote? |
 | --- | --- | --- | --- | --- | --- |
-| *(none yet)* | | | | | |
+| tests/test_cli.py::test_package_imports | no | | cellpy_connectors | #4 | First suite; no essential marker configured |
+| tests/test_cli.py::test_entry_point_is_declared | no | | pyproject entry point | #4 | |
+| tests/test_cli.py::test_ping_via_app | no | | cellpy_connectors.cli | #4 | |
+| tests/test_cli.py::test_cellpy_help_lists_connectors_without_import | no | | cellpy mount | #4 | skips without CellpyCLIGroup |
+| tests/test_cli.py::test_cellpy_connectors_ping | no | | cellpy mount | #4 | skips without CellpyCLIGroup |
+| tests/test_cli.py::test_import_cellpy_does_not_import_connectors | no | | cellpy import | #4 | skips without cellpy |
+| tests/test_cli.py::test_entry_point_loads_typer_app | no | | cellpy_connectors.cli | #4 | |
 
 **Columns**
 

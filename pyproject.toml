@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cellpy-connectors"
+version = "0.1.0"
+description = "Pluggable connectors for cellpy."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Jan Petter Maehlen", email = "jepe@ife.no" },
+]
+keywords = ["cellpy", "battery", "connectors"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "typer",
+]
+
+[project.urls]
+Homepage = "https://github.com/cellpy/cellpy-connectors"
+Repository = "https://github.com/cellpy/cellpy-connectors"
+Issues = "https://github.com/cellpy/cellpy-connectors/issues"
+
+[project.entry-points."cellpy.cli_plugins"]
+connectors = "cellpy_connectors.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["cellpy_connectors"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+addopts = "-v"

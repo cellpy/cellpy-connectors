@@ -1,3 +1,5 @@
+<img src="cellpy-icon-bw.svg" height="80" alt="cellpy-icon">
+
 # cellpy-connectors
 
 Pluggable connectors for [cellpy](https://github.com/jepegit/cellpy).

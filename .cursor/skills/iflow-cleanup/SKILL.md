@@ -62,6 +62,7 @@ Optional free-form text after the command:
 - A **branch name** — Phase A targets that branch instead of the current one (e.g. `/iflow-cleanup 42-fix-login`).
 - **GitHub remote audit (opt-in tokens)** — trailing text containing (case-insensitive) `include github`, `include gh`, `with github`, or a standalone `github` token enables **Phase B** after Phase A.
 - **GitHub remote audit (opt-out tokens)** — trailing `no github`, `local only`, or `local-only` (case-insensitive) **skips Phase B** even when `cleanup_include_github` is baked true.
+- **Workspace walk (opt-in tokens)** — trailing `workspace`, `all`, or `include workspace` (case-insensitive) runs this skill **sequentially for every scaffolded workspace member**. One up-front confirm listing member names. Then existing Phase A1/A2 (and optional B) **per member**. A declined A2 in one repo continues to the next; user `abort` / `stop` ends the walk. Ignore these tokens when parsing a named branch. There is no mute `workspace cleanup` CLI.
 
 **Phase B enable rule:** run Phase B when (`cleanup_include_github` is baked true **or** an opt-in GitHub token is present) **and** no opt-out token is present.
 
@@ -88,11 +89,25 @@ Optional free-form text after the command:
 
 5. **Consolidated confirm (Phase A1 — local)** — one yes/no prompt listing every action:
    - `git switch <default>` (home only; skip if already on default)
-   - `git pull --ff-only`
+   - `git pull --ff-only` — if it fails, **stop** A1 steps that assume default is current (apply-changelog, release tag) and recover via `default-sync` (see below).
+
    - `git fetch --prune`
    - `issue-flow agent worktree-list --json` — for each **linked** worktree whose branch is **`reachable`**, `issue-flow agent worktree-remove <path>` (or the issue number) **before** deleting the branch. Git cannot `-d` a branch that is still checked out in a worktree. Never remove a worktree whose branch is `unique_work`.
    - `git branch -d <branch>` for each **`reachable`** branch, listed explicitly by name first. If `-d` still refuses, report that branch and move on.
-   - **Planned release tag (tag-derived projects only).** When `/iflow-close` planned a tag it did not create — check the focus issue's status file and the newest `HISTORY.md` release section for a version whose tag is missing from `git tag -l` — include creating it here: `git tag <planned>` then `git push origin <planned>` (or `gh release create <planned> --generate-notes`). Run it **after** the pull so the tag lands on the merged squash commit.
+   - **Planned release / publish-on-success.** When `/iflow-close` planned a tag (tag-derived) **or** recorded a publish label / planned version on the status file — check the focus issue's status file and the newest `HISTORY.md` release section for a version whose tag is missing from `git tag -l` (or whose GitHub release is missing) — include creating it here: prefer `gh release create "v<version>" --generate-notes` (creates the tag too); for tag-only projects without publish, `git tag <planned>` then `git push origin <planned>` is enough. Run it **after** the pull so the tag lands on the merged squash commit. Do not invent releases for ordinary bumps that had no publish label and no planned tag.
+
+If `git pull --ff-only` fails on default (or home default is **ahead** of origin), run `issue-flow agent default-sync --json` (classify-only; never mutates). Print ahead/behind, unique commit onelines + paths, and the recommended `action`. Do **not** only dump `fatal: Not possible to fast-forward`.
+
+| `action` | What to offer |
+| --- | --- |
+| `even` / `ff_only` | Pull is safe; retry `git pull --ff-only`. |
+| `report_ahead` | Print unique commits. Do not silent-push default. |
+| `tracking_pr` | Merge `origin/<default>` **or** cherry-pick onto a chore branch, then open a tiny PR. Never push default. |
+| `replay_tracking` | Replay the tracking commit onto `origin/<default>` (chore branch + PR). Do not stack another merge. |
+| `stop_product` | Stop. User decides. Do not merge onto default. |
+
+Never: rebase default, `push --force` default, or push default to skip CI.
+
 
 6. **Force-delete confirm (Phase A2 — only when `squash_landed` or `merged_pr_divergent` is non-empty).** A **separate** yes/no prompt; Phase A1's yes never implies it. Skip this step entirely when both buckets are empty.
    - State plainly that these branches need `git branch -D` because a squash merge leaves no reachable tip, and that `-D` skips git's own safety check.
@@ -115,14 +130,15 @@ Optional free-form text after the command:
      - Optional: create a findings issue with `gh issue create --repo <owner/repo>` after showing the draft title/body (deletable list + unique-work summaries). Suggested title: `chore: remote branch audit (<YYYY-MM-DD>)`. Create only on yes.
    - Phase B is **read-only until that second confirm**. Declining leaves remotes untouched.
 
-10. **Report.** Summarize: default branch, PR/merge status, Phase A1 commands and `-d` deletions, Phase A2 `-D` deletions with their tip SHAs (or "declined" / "none offered"), branches left alone as unique work, folder sweep, epic stage-gate offer, and (when run) Phase B bucket counts, remote deletes, findings issue URL or "skipped". If `issue-flow agent resolve --json` reports `sibling_roots`, list them and remind the user that **each scaffolded repo needs its own `/iflow-cleanup`** — do not loop automatically in this step. If other open PRs still show `DIRTY` / CONFLICTING (often `HISTORY.md`), **offer** `/iflow-pr-sync` — do not auto-run it.
+10. **Report.** Summarize: default branch, PR/merge status, Phase A1 commands and `-d` deletions, Phase A2 `-D` deletions with their tip SHAs (or "declined" / "none offered"), branches left alone as unique work, folder sweep, epic stage-gate offer, and (when run) Phase B bucket counts, remote deletes, findings issue URL or "skipped". If this run used a workspace token, report each member. Else if `issue-flow agent resolve --json` reports `sibling_roots`, list them and remind the user that **each scaffolded repo needs its own `/iflow-cleanup`** (or `/iflow-cleanup workspace`) — do not loop automatically without the token. If other open PRs still show `DIRTY` / CONFLICTING (often `HISTORY.md`), **offer** `/iflow-pr-sync` — do not auto-run it.
 
 ## Constraints
 
-- Never use `git push --force`.
+- Never use `git push --force`. Never rebase default, force-push default, or push default to skip CI.
 - `git branch -D` is allowed **only** for `squash_landed` / `merged_pr_divergent` branches, **only** after the Phase A2 confirm, and **only** with their tip SHAs reported. Never `-D` a branch holding unique work, a branch you could not classify, or the current branch. In Phase A1, a `-d` refusal is reported and left alone — it is never a licence to force-delete.
 - Never delete the default branch (local or remote).
 - Remote deletes and findings-issue creation require the **Phase B** confirm; the Phase A1 and A2 yeses must not imply them (nor each other).
 - If anything is ambiguous (detached HEAD, multiple remotes, missing tracking info), report and stop rather than guess.
-- Do not open or update PRs. Do not bump version fields — pyproject bumps belong to `/iflow-close`. The only version action allowed here is creating a release tag that `/iflow-close` **planned** (tag-derived strategy), inside the Phase A consolidated confirm.
+- Do not open or update PRs. Do not bump version fields — pyproject bumps belong to `/iflow-close`. The only version action allowed here is creating a release tag / GitHub release that `/iflow-close` **planned** (tag-derived strategy or publish-on-success label), inside the Phase A consolidated confirm.
 - Do **not** offer to update `HISTORY.md` / CHANGELOG here — that belongs in `/iflow-close` before the PR.
+

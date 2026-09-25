@@ -65,11 +65,17 @@ When `.issueflows/04-designs-and-guides/multi-repo-workspaces.md` exists, read i
 > - **Audit:** `issue-flow doctor [--json]` (or `issue-flow agent audit`).
 > - **Repair:** `issue-flow doctor --fix [--except N] [--dry-run] [--json]`
 >   (or `issue-flow agent repair`).
+> - **Workspace audit:** trailing `workspace` / `all`, or cwd is the workspace
+>   root → `issue-flow workspace doctor [--json]` (no `--fix`).
 >
 > The CLI is optional: if it is missing or errors, fall back to the manual
 > checklist in `.issueflows/04-designs-and-guides/dirty-issueflows.md`.
 
 1. **Resolve project root** — use `issue-flow agent resolve` when available.
+   If the user passed `workspace` / `all`, or cwd is the workspace root (toml
+   present, not a member), run `issue-flow workspace doctor` and present each
+   member. Repair stays per-repo: `issue-flow doctor --fix -C <member>` after
+   they name members. Do not `--fix` the whole workspace in one shot.
 
 2. **Audit** — run `issue-flow doctor` (or manual checks per the design doc).
    Present every finding: code, severity, message, suggested next step.
@@ -91,8 +97,11 @@ When `.issueflows/04-designs-and-guides/multi-repo-workspaces.md` exists, read i
      list the paths, propose
      `chore: doctor housekeeping — archive/sweep .issueflows groups`,
      and ask for **one confirm** with **yes as the recommended default**.
-     On yes: `git add` **only** those paths and commit (no push). On no: leave
-     dirty and note that `/iflow-pick` will offer the same commit again.
+     On yes: `git add` **only** those paths and commit (no push). If the
+     current branch is the **default**, commit on a chore branch (or a tiny
+     PR) instead — do not leave housekeeping unpushed on home default
+     (issue #303). On no: leave dirty and note that `/iflow-pick` will
+     offer the same commit again.
    - If dirty with any path **outside** `.issueflows/` — report mixed
      dirt; do **not** offer the housekeeping default (user must sort code
      changes separately).

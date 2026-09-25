@@ -3,8 +3,8 @@
 ## What this project is
 
 Plugin package that adds connector commands under the `cellpy` CLI (entry-point
-group `cellpy.cli_plugins`). First ship is a no-I/O `ping` command used to
-prove the hook. BatBase / credentials / `configure` are later issues.
+group `cellpy.cli_plugins`). Ships `ping`, a credential resolver, `ApiClientBase`,
+and `cellpy connectors configure <name>`. BatBase is a later issue.
 
 ## Stack / runtime
 
@@ -31,8 +31,8 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
 - Issue branches: `<N>-<short-slug>`
 - Conventional Commits; squash-merge on GitHub
 - `cellpy` is not a runtime dependency of this package
-- One top-level CLI slot: entry-point name `connectors`. New commands go on
-  the same Typer `app` (#3 will add `configure` here)
+- One top-level CLI slot: entry-point name `connectors`. `ping` and
+  `configure` share the Typer `app` in `cellpy_connectors.cli`
 
 ## Release & version bump
 
@@ -49,6 +49,7 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
 
 ## Non-goals / known limitations
 
-- No BatBase client, keyring, or `ApiClientBase` yet (#3 / #1 / #2)
+- No BatBase client yet (#1 / #2). `configure` has nothing to register until then.
 - No `cellpy.metadata_sources` entry point (cellpy #784 / this repo #2)
+- Credential precedence and the HTTP base: [connector-base.md](connector-base.md)
 - No GitHub Actions yet

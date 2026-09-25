@@ -11,6 +11,8 @@ import pytest
 from typer.testing import CliRunner
 
 from cellpy_connectors.cli import PING_MESSAGE, app
+from cellpy_connectors.credentials import CredentialField
+from cellpy_connectors.registry import ConnectorSpec, register, unregister
 
 ENTRY_POINT_GROUP = "cellpy.cli_plugins"
 ENTRY_POINT_NAME = "connectors"
@@ -93,6 +95,37 @@ def test_import_cellpy_does_not_import_connectors() -> None:
         check=False,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_configure_unknown_name() -> None:
+    result = CliRunner().invoke(app, ["configure", "nope"])
+    assert result.exit_code == 1, result.output
+    assert "No connectors are registered" in result.output
+
+
+def test_configure_stores_without_echoing_the_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    stored: dict[tuple[str, str], str] = {}
+    field = CredentialField(
+        name="token",
+        env_var="CELLPY_FAKE_TOKEN",
+        keyring_service="cellpy-connectors-test",
+        keyring_username="token",
+        prompt="Token",
+    )
+    register(ConnectorSpec(name="fake", fields=(field,)))
+
+    def _store(got: CredentialField, value: str) -> None:
+        stored[(got.keyring_service, got.keyring_username)] = value
+
+    monkeypatch.setattr("cellpy_connectors.credentials.store_secret", _store)
+    try:
+        result = CliRunner().invoke(app, ["configure", "fake"], input="s3cret\n")
+    finally:
+        unregister("fake")
+    assert result.exit_code == 0, result.output
+    assert "Stored credentials for fake" in result.output
+    assert "s3cret" not in result.output
+    assert stored[(field.keyring_service, field.keyring_username)] == "s3cret"
 
 
 def test_entry_point_loads_typer_app() -> None:

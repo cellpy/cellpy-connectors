@@ -2,11 +2,11 @@
 
 Pluggable connectors for [cellpy](https://github.com/jepegit/cellpy).
 
-This repo currently ships a **test connector**: a tiny Typer group mounted on
-the cellpy CLI so the `cellpy.cli_plugins` hook can be exercised. No network,
-no credentials, no BatBase. Real connector work (shared base, `configure`,
-BatBase) is tracked in issues #3, #1, and #2 — those will extend this same
-`connectors` group.
+This repo mounts a Typer group on the cellpy CLI (`cellpy connectors`).
+It includes a no-I/O `ping` command and a shared base later connectors
+subclass: credential resolution (argument, then environment, then OS keyring),
+`ApiClientBase`, and `cellpy connectors configure <name>`. BatBase itself is
+still a later issue (#1, then #2).
 
 ## Install next to cellpy
 
@@ -38,6 +38,20 @@ uv run cellpy connectors ping
 
 Prints `cellpy-connectors: ok` and exits 0. `cellpy --help` lists `connectors`
 without importing this package.
+
+## Configure
+
+`configure` writes secrets to the OS keyring. It only accepts connector names
+that have registered a spec (none ship yet; BatBase will, in #1):
+
+```bash
+uv run cellpy connectors configure <name>
+```
+
+Prompts are hidden and the values are not printed. On a machine with no
+keyring (CI, HPC), set the connector's environment variables instead. Resolution
+order for every secret is: explicit argument, environment variable, OS keyring.
+Secrets are never read from a config file.
 
 ## Tests
 

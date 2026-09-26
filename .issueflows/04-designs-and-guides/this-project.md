@@ -4,7 +4,8 @@
 
 Plugin package that adds connector commands under the `cellpy` CLI (entry-point
 group `cellpy.cli_plugins`). Ships `ping`, a credential resolver, `ApiClientBase`,
-and `cellpy connectors configure <name>`. BatBase is a later issue.
+`cellpy connectors configure <name>`, and the BatBase connector
+(`cellpy_connectors.batbase.BatBaseClient`, `cellpy connectors batbase check|get`).
 
 ## Stack / runtime
 
@@ -31,8 +32,14 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
 - Issue branches: `<N>-<short-slug>`
 - Conventional Commits; squash-merge on GitHub
 - `cellpy` is not a runtime dependency of this package
-- One top-level CLI slot: entry-point name `connectors`. `ping` and
-  `configure` share the Typer `app` in `cellpy_connectors.cli`
+- One top-level CLI slot: entry-point name `connectors`. `ping`,
+  `configure` and the `batbase` sub-app share the Typer `app` in
+  `cellpy_connectors.cli`
+- Shipped connectors register their `ConnectorSpec` on import;
+  `cli._load_builtin_connectors()` imports them before `configure` looks up
+  a name. Add new connectors there.
+- Live smoke tests against BatBase are manual (local dev server on
+  `http://localhost:8000` with `--anonymous`); the pytest suite is offline.
 
 ## Release & version bump
 
@@ -49,7 +56,9 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
 
 ## Non-goals / known limitations
 
-- No BatBase client yet (#1 / #2). `configure` has nothing to register until then.
+- BatBase is read-only in practice: `BatBaseClient` exposes `get`/`get_all`
+  (#1); no push helpers. `write` scope can be requested but nothing uses it.
 - No `cellpy.metadata_sources` entry point (cellpy #784 / this repo #2)
-- Credential precedence and the HTTP base: [connector-base.md](connector-base.md)
+- Credential precedence and the HTTP base: [connector-base.md](connector-base.md);
+  BatBase specifics: [batbase-client.md](batbase-client.md)
 - No GitHub Actions yet

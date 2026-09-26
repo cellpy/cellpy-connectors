@@ -100,7 +100,8 @@ def test_import_cellpy_does_not_import_connectors() -> None:
 def test_configure_unknown_name() -> None:
     result = CliRunner().invoke(app, ["configure", "nope"])
     assert result.exit_code == 1, result.output
-    assert "No connectors are registered" in result.output
+    assert "Unknown connector 'nope'" in result.output
+    assert "batbase" in result.output  # shipped connectors are listed
 
 
 def test_configure_stores_without_echoing_the_secret(monkeypatch: pytest.MonkeyPatch) -> None:

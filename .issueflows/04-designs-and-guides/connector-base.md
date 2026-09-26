@@ -23,7 +23,7 @@ consumer and must not reimplement them.
 | 401/403 | `ConnectorAuthError` |
 | Missing secret | `ConnectorCredentialsError` |
 | Other HTTP / network | `ConnectorError` |
-| Registry | empty until a connector calls `register` |
+| Registry | shipped connectors register on import (`batbase` since #1); `cli._load_builtin_connectors()` imports them before `configure` |
 
 Headless machines skip `configure` and set environment variables. A missing
 keyring backend is "not stored", not a crash, when resolving. Storing still

@@ -4,8 +4,9 @@
 
 Plugin package that adds connector commands under the `cellpy` CLI (entry-point
 group `cellpy.cli_plugins`). Ships `ping`, a credential resolver, `ApiClientBase`,
-`cellpy connectors configure <name>`, and the BatBase connector
-(`cellpy_connectors.batbase.BatBaseClient`, `cellpy connectors batbase check|get`).
+`cellpy connectors configure <name>`, the BatBase connector
+(`cellpy_connectors.batbase.BatBaseClient`, `cellpy connectors batbase check|get`)
+and its cellpy `MetadataSource` adapter (`cellpy_connectors.batbase_source`).
 
 ## Stack / runtime
 
@@ -58,7 +59,11 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
 
 - BatBase is read-only in practice: `BatBaseClient` exposes `get`/`get_all`
   (#1); no push helpers. `write` scope can be requested but nothing uses it.
-- No `cellpy.metadata_sources` entry point (cellpy #784 / this repo #2)
+- `cellpy.metadata_sources` entry point `batbase` → `BatBaseMetadataSource`
+  (#2). Read only; no `SupportsMetadataPush`. Journal annotations (mass, area,
+  …) await ife-bat/batbase#473 on the API; the mapping already reads them.
+- `cellpy` is still not a runtime dependency: `batbase_source` imports cellpy
+  lazily inside `fetch`/`_record`; `journal_row_to_meta` is cellpy-free.
 - Credential precedence and the HTTP base: [connector-base.md](connector-base.md);
   BatBase specifics: [batbase-client.md](batbase-client.md)
 - No GitHub Actions yet

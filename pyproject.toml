@@ -34,6 +34,9 @@ Issues = "https://github.com/cellpy/cellpy-connectors/issues"
 [project.entry-points."cellpy.cli_plugins"]
 connectors = "cellpy_connectors.cli:app"
 
+[project.entry-points."cellpy.metadata_sources"]
+batbase = "cellpy_connectors.batbase_source:BatBaseMetadataSource"
+
 [dependency-groups]
 dev = [
     "pytest",

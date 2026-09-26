@@ -6,8 +6,9 @@ This repo mounts a Typer group on the cellpy CLI (`cellpy connectors`).
 It includes a no-I/O `ping` command, a shared base connectors subclass
 (credential resolution: argument, then environment, then OS keyring;
 `ApiClientBase`; `cellpy connectors configure <name>`), and the first real
-connector: **BatBase** (`BatBaseClient` + `cellpy connectors batbase …`).
-The cellpy-side `MetadataSource` adapter is #2.
+connector: **BatBase** (`BatBaseClient` + `cellpy connectors batbase …`) and
+its cellpy `MetadataSource` adapter (`BatBaseMetadataSource`, entry point
+`cellpy.metadata_sources`).
 
 ## Install next to cellpy
 
@@ -86,6 +87,34 @@ page = bb.get("test-cellpy-journal", search="SAL_010")   # one DRF page (dict)
 rows = bb.get_all("test-batch")                          # every row (list)
 ```
 
+### As a cellpy metadata source
+
+With a cellpy that has `cellpy.readers.metadata_sources` (jepegit/cellpy#784),
+this package registers BatBase under the `cellpy.metadata_sources` entry point,
+so a cell can pull its lab metadata directly:
+
+```python
+import cellpy
+
+c = cellpy.get("20240101_SAL_010_cc_01.res")
+c.fetch_meta("batbase")                              # key defaults to c.cell_name (journal label)
+c.fetch_meta("batbase", "SAL_010", kind="tag", project="3")   # every test under a cellpy tag
+c.fetch_meta("batbase", "42", kind="external_id")    # one journal row by id
+c.external_links["batbase"]                          # ExternalLink(external_id="42", source_uri=…)
+```
+
+Mapping (`cellpy_connectors.batbase_source.journal_row_to_meta`): journal
+`mass`/`total_mass`/`area`/`loading` → `CellMeta.mass`/`tot_mass`/
+`active_electrode_area`/`active_electrode_loading`; `nominal_capacity_value` +
+unit → `nom_cap` in mAh/g (or mAh/cm², mAh) + `nom_cap_specifics`; `cell_type`
+`hc/fc/3e/sym` → `half_cell/full_cell/…`; `test_mode` → `cycle_mode`
+(`anode` / `cathode` / `full`); `label` → `cell_name`; `comments`,
+`test_schedule`. BatBase unreachable ⇒ cellpy logs a warning and the cell
+loads without the layer; rejected credentials raise
+`MetadataSourceAuthError`. The mass/area/loading/cell_type columns are not on
+the API yet (ife-bat/batbase#473); until then records carry the experiment's
+own fields (label, nominal capacity, test mode, schedule, comments).
+
 Tokens are fetched with the `read` scope, cached in memory until shortly before
 they expire, and refreshed once automatically if BatBase answers 401. Missing
 or rejected credentials raise `BatBaseAuthError` with the fix in the message.
@@ -102,8 +131,8 @@ uv sync
 uv run pytest
 ```
 
-Tests that invoke the live `cellpy` CLI skip if cellpy is missing or predates
-the plugin mount.
+Tests that invoke the live `cellpy` CLI, or the cellpy `MetadataSource`
+contract, skip if cellpy is missing or predates the plugin mount / #784.
 
 ## Python
 

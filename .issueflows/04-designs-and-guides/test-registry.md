@@ -55,6 +55,21 @@ current issue**. `/iflow-doctor` may audit the whole suite against this table.
 | tests/test_batbase.py::test_cli_auth_error_exits_1_without_traceback | no | | cli.batbase_check | #1 | |
 | tests/test_batbase.py::test_cli_configure_batbase_uses_registered_fields | no | | cli.configure + batbase spec | #1 | fake keyring |
 | tests/test_batbase.py::test_basic_auth_header_shape_matches_batbase_scripts | no | | requests Basic auth | #1 | parity with BatBase scripts |
+| tests/test_batbase_source.py::test_journal_row_maps_cell_and_test_fields | no | | batbase_source.journal_row_to_meta | #2 | full field map, no cellpy needed |
+| tests/test_batbase_source.py::test_journal_row_without_annotations_still_yields_what_is_there | no | | journal_row_to_meta | #2 | API shape today (ife-bat/batbase#473) |
+| tests/test_batbase_source.py::test_mapping_never_emits_none_or_blank | no | | journal_row_to_meta | #2 | cellpy contract: no None |
+| tests/test_batbase_source.py::test_nominal_capacity_units_convert_to_cellpy | no | | _nominal_capacity | #2 | parametrised units |
+| tests/test_batbase_source.py::test_cycle_mode_vocabulary | no | | _cycle_mode | #2 | parametrised |
+| tests/test_batbase_source.py::test_source_is_lazy_about_the_client | no | | BatBaseMetadataSource.client | #2 | no network on instantiation |
+| tests/test_batbase_source.py::test_journal_listing_is_cached_per_instance | no | | BatBaseMetadataSource._journal_rows | #2 | injected clock |
+| tests/test_batbase_source.py::test_satisfies_the_cellpy_protocol | no | | MetadataSource Protocol | #2 | skips without cellpy #784 |
+| tests/test_batbase_source.py::test_entry_point_is_declared | no | | pyproject entry point | #2 | skips without cellpy |
+| tests/test_batbase_source.py::test_conformance_kit_passes | no | | check_metadata_source | #2 | skips without cellpy |
+| tests/test_batbase_source.py::test_tag_queries_use_server_filters_when_possible | no | | _rows_for_tag | #2 | skips without cellpy |
+| tests/test_batbase_source.py::test_auth_errors_become_cellpy_auth_errors | no | | fetch error mapping | #2 | never swallowed |
+| tests/test_batbase_source.py::test_unreachable_batbase_is_an_empty_layer_via_cellpy | no | | fetch + cellpy null object | #2 | |
+| tests/test_batbase_source.py::test_end_to_end_cell_fetch_meta_applies_batbase_mass | no | | CellpyCell.fetch_meta + adapter | #2 | M2 acceptance, offline |
+| tests/test_batbase_source.py (other 6) | no | | cell_name/external_id/test_name kinds, validation | #2 | skips without cellpy |
 
 **Columns**
 

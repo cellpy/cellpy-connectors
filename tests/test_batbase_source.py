@@ -154,7 +154,7 @@ def test_journal_row_maps_cell_and_test_fields() -> None:
 def test_journal_row_without_annotations_still_yields_what_is_there() -> None:
     cell, test = journal_row_to_meta(ROW_OTHER)
     assert cell == {"nom_cap": 150.0, "nom_cap_specifics": "gravimetric", "cell_type": "full_cell"}
-    assert test == {"cell_name": "SAL_011", "cycle_mode": "full"}
+    assert test == {"cell_name": "SAL_011", "cycle_mode": "full_cell"}
 
 
 def test_mapping_never_emits_none_or_blank() -> None:
@@ -193,7 +193,7 @@ def test_nom_cap_annotation_is_fallback_only() -> None:
 
 @pytest.mark.parametrize(
     ("test_mode", "cell_type", "expected"),
-    [("i", "hc", "anode"), ("n", "hc", "cathode"), ("n", "fc", "full"), ("normal", None, "cathode"), ("x", "hc", None)],
+    [("i", "hc", "anode"), ("n", "hc", "cathode"), ("n", "fc", "full_cell"), ("normal", None, "cathode"), ("x", "hc", None)],
 )
 def test_cycle_mode_vocabulary(test_mode, cell_type, expected) -> None:
     _, test = journal_row_to_meta({"test_mode": test_mode, "cell_type": cell_type})

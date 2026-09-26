@@ -108,7 +108,7 @@ Mapping (`cellpy_connectors.batbase_source.journal_row_to_meta`): journal
 `active_electrode_area`/`active_electrode_loading`; `nominal_capacity_value` +
 unit → `nom_cap` in mAh/g (or mAh/cm², mAh) + `nom_cap_specifics`; `cell_type`
 `hc/fc/3e/sym` → `half_cell/full_cell/…`; `test_mode` → `cycle_mode`
-(`anode` / `cathode` / `full`); `label` → `cell_name`; `comments`,
+(`anode` / `cathode` / `full_cell`); `label` → `cell_name`; `comments`,
 `test_schedule`. BatBase unreachable ⇒ cellpy logs a warning and the cell
 loads without the layer; rejected credentials raise
 `MetadataSourceAuthError`. The mass/area/loading/cell_type columns are not on

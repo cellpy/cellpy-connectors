@@ -194,7 +194,7 @@ def _cycle_mode(test_mode: str | None, cell_type_code: str | None) -> str | None
     if mode.startswith("i"):  # "i" / "inverted (anode mode)"
         return "anode"
     if mode.startswith("n"):  # "n" / "normal"
-        return "full" if cell_type_code == "fc" else "cathode"
+        return "full_cell" if cell_type_code == "fc" else "cathode"
     return None
 
 

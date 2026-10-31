@@ -63,7 +63,10 @@ Live `cellpy connectors …` tests skip unless a cellpy with `CellpyCLIGroup`
   (#2). Read only; no `SupportsMetadataPush`. Journal annotations (mass, area,
   …) await ife-bat/batbase#473 on the API; the mapping already reads them.
 - `cellpy` is still not a runtime dependency: `batbase_source` imports cellpy
-  lazily inside `fetch`/`_record`; `journal_row_to_meta` is cellpy-free.
+  lazily inside `fetch`/`_record`; `journal_row_to_meta` and `journal_row_files`
+  are cellpy-free. File pointers (`MetaRecord.files`) need cellpy >= 2.1.5.post7
+  (jepegit/cellpy#1119). Older releases that predate `metadata_sources` are
+  unchanged; that registry and `FileRef` shipped in the same post.
 - Credential precedence and the HTTP base: [connector-base.md](connector-base.md);
   BatBase specifics: [batbase-client.md](batbase-client.md)
 - No GitHub Actions yet

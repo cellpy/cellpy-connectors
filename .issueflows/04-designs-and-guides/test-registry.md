@@ -61,7 +61,11 @@ current issue**. `/iflow-doctor` may audit the whole suite against this table.
 | tests/test_batbase_source.py::test_nominal_capacity_units_convert_to_cellpy | no | | _nominal_capacity | #2 | parametrised units |
 | tests/test_batbase_source.py::test_cycle_mode_vocabulary | no | | _cycle_mode | #2 | parametrised |
 | tests/test_batbase_source.py::test_source_is_lazy_about_the_client | no | | BatBaseMetadataSource.client | #2 | no network on instantiation |
+| tests/test_batbase_source.py::test_journal_row_files_maps_batbase_shape | no | | journal_row_files | #11 | order, loader, skip empty uri; no cellpy |
+| tests/test_batbase_source.py::test_journal_row_files_absent_is_empty | no | | journal_row_files | #11 | missing / null / non-list |
 | tests/test_batbase_source.py::test_journal_listing_is_cached_per_instance | no | | BatBaseMetadataSource._journal_rows | #2 | injected clock |
+| tests/test_batbase_source.py::test_files_become_filerefs_in_batbase_order | no | | BatBaseMetadataSource._record | #11 | raw_files order, cellpy_file, loader; skips without cellpy >= 2.1.5.post7 |
+| tests/test_batbase_source.py::test_row_without_files_yields_empty_files | no | | BatBaseMetadataSource._record | #11 | files == () |
 | tests/test_batbase_source.py::test_satisfies_the_cellpy_protocol | no | | MetadataSource Protocol | #2 | skips without cellpy #784 |
 | tests/test_batbase_source.py::test_entry_point_is_declared | no | | pyproject entry point | #2 | skips without cellpy |
 | tests/test_batbase_source.py::test_conformance_kit_passes | no | | check_metadata_source | #2 | skips without cellpy |

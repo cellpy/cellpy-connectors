@@ -103,6 +103,19 @@ c.fetch_meta("batbase", "42", kind="external_id")    # one journal row by id
 c.external_links["batbase"]                          # ExternalLink(external_id="42", source_uri=…)
 ```
 
+BatBase tells cellpy where the files are. On cellpy >= 2.1.5.post7
+(jepegit/cellpy#1119) each journal `files[]` entry becomes a `FileRef`, and
+`cellpy.get` opens those URIs instead of searching with `filefinder`:
+
+```python
+cellpy.get(source="batbase", key="SAL_010", kind="tag")
+```
+
+`instrument_loader` is the file's `loader`. Entries with an empty `uri` are
+dropped. A raw file with `is_primary=False` is still included. A journal row
+from an older server (no `files` key) yields `files=()` and cellpy falls back
+to `filefinder`.
+
 Mapping (`cellpy_connectors.batbase_source.journal_row_to_meta`): journal
 `mass`/`total_mass`/`area`/`loading` → `CellMeta.mass`/`tot_mass`/
 `active_electrode_area`/`active_electrode_loading`; `nominal_capacity_value` +
@@ -133,6 +146,7 @@ uv run pytest
 
 Tests that invoke the live `cellpy` CLI, or the cellpy `MetadataSource`
 contract, skip if cellpy is missing or predates the plugin mount / #784.
+File-pointer checks need cellpy >= 2.1.5.post7.
 
 ## Python
 

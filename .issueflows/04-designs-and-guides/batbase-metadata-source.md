@@ -22,13 +22,14 @@ are **not on the API today** — filed as ife-bat/batbase#473.
 | Topic | Decision |
 | --- | --- |
 | Module | `cellpy_connectors/batbase_source.py`; entry point `cellpy.metadata_sources` → `batbase = …:BatBaseMetadataSource` |
-| cellpy dependency | still not a runtime dependency: cellpy imported lazily inside `fetch` / `_record`; `journal_row_to_meta` is pure and cellpy-free (testable without cellpy) |
+| cellpy dependency | still not a runtime dependency: cellpy imported lazily inside `fetch` / `_record`; `journal_row_to_meta` and `journal_row_files` are pure and cellpy-free. File pointers need cellpy >= 2.1.5.post7 |
 | Client | injected `BatBaseClient` or built lazily on first use from env/keyring (registry instantiates with no args; no network on import/instantiation) |
 | Row | one `test-cellpy-journal` row → one `MetaRecord`; `external_id = str(row.id)`, `source_uri = <base>api/test-cellpy-journal/<id>/`, `raw = row` |
 | Query kinds | `cell_name` (default): `label`, else `name`, else `device_name`, matched client-side over the cached listing; `tag`: server filter with `project` (`cellpy_tag__name` + `cellpy_tag__project`), numeric key = tag id, unscoped name resolved via `test-cellpy-tag` across visible projects; `external_id`: single row, 404 ⇒ `()`; `test_name`: `name`. Others ⇒ `()` |
 | Cache | journal listing cached per source instance for 300 s (`cache_seconds`, `invalidate()`), so batch use does not re-list per cell |
 | Field map | `mass`→`mass` (mg), `total_mass`→`tot_mass`, `area`→`active_electrode_area` (cm²), `loading`→`active_electrode_loading` (mg/cm²), `nominal_capacity_value`+`nominal_capacity_unit` → `nom_cap` converted to mAh/g / mAh/cm² / mAh + `nom_cap_specifics` (`nom_cap` annotation as fallback), `cell_type` hc/fc/3e/sym → half_cell/full_cell/three_electrode/symmetrical, `test_mode` i→`anode`, n→`full_cell` (fc) / `cathode`, `label`→`cell_name`, `comments`→`comment`, `test_schedule`→`schedule_file_name` |
 | Not mapped | `instrument` (would be `source_type`, which is load provenance), `channel`/`device` pks, `date`, `temperature`, `pressure`, `name` (kept in `raw`) |
+| File pointers (#11) | `journal_row_files` maps `files[]` → `FileRef` kwargs; `_record` builds `FileRef`s. `kind`/`uri`/`order`/`size`/`mtime`/`checksum` pass through, `instrument_loader`→`loader`, `location`→`location`. Empty `uri` and non-mappings are skipped. BatBase list order is kept (`raw_files()` sorts by `order`). Missing `files` → `()`. Needs cellpy >= 2.1.5.post7 (#1119). `is_primary` is not a `FileRef` field: `is_primary=False` raw files are still included |
 | Errors | `ConnectorAuthError` → `MetadataSourceAuthError` (cellpy never swallows); other `ConnectorError` → `MetadataSourceError` (cellpy's `fetch_meta` degrades to `()`) |
 | Push | not implemented; `SupportsMetadataPush` deliberately absent (M3, `write` scope) |
 
@@ -42,6 +43,21 @@ are **not on the API today** — filed as ife-bat/batbase#473.
   logic client-side; better to expose the annotations once (#473).
 - Map `instrument` → `source_type` like `journal_layer` does — contract
   forbids sources filling provenance; the loader owns `source_type`.
+
+## File pointers
+
+BatBase tells cellpy where the files are. With cellpy >= 2.1.5.post7:
+
+```python
+import cellpy
+
+cellpy.get(source="batbase", key="SAL_010", kind="tag")
+```
+
+`cellpy.get` / `batch.from_source` open `MetaRecord.files` directly and fall
+back to `filefinder` only when `files` is empty. `is_primary=False` raw files
+stay in the set; they are ordered parts of the experiment, and `FileRef` has
+no primary flag.
 
 ## Verify manually
 

@@ -17,6 +17,7 @@ from cellpy_connectors.batbase_source import (
     JOURNAL_ENDPOINT,
     TAG_ENDPOINT,
     BatBaseMetadataSource,
+    journal_row_files,
     journal_row_to_meta,
 )
 from cellpy_connectors.errors import ConnectorAuthError, ConnectorError
@@ -54,6 +55,38 @@ ROW_SAL_010 = {
     "cell_type": "hc",
     "device_name": "SAL_010_cell",
     "instrument": "arbin_res",
+    # BatBase files[] (ife-bat/batbase#478). Empty uri and non-mappings are dropped.
+    # Listed out of load order so raw_files() must sort by `order`.
+    "files": [
+        {
+            "kind": "raw",
+            "uri": "sftp://lab/SAL_010_01.res",
+            "order": 1,
+            "is_primary": False,
+            "instrument_loader": "arbin_res",
+            "mtime": "  ",
+        },
+        "not-a-file",
+        {"kind": "raw", "uri": "  ", "order": 9, "instrument_loader": "arbin_res"},
+        {
+            "kind": "cellpy",
+            "uri": "sftp://lab/SAL_010.cellpy",
+            "order": 0,
+            "is_primary": True,
+            "instrument_loader": "cellpy",
+        },
+        {
+            "kind": "raw",
+            "uri": "sftp://lab/SAL_010_00.res",
+            "order": 0,
+            "is_primary": True,
+            "size": 100,
+            "mtime": "2024-01-01T00:00:00Z",
+            "checksum": "aaa",
+            "instrument_loader": "arbin_res",
+            "location": "lab-nas",
+        },
+    ],
 }
 ROW_OTHER = {
     "id": 43,
@@ -200,6 +233,38 @@ def test_cycle_mode_vocabulary(test_mode, cell_type, expected) -> None:
     assert test.get("cycle_mode") == expected
 
 
+def test_journal_row_files_maps_batbase_shape() -> None:
+    files = journal_row_files(ROW_SAL_010)
+    assert [item["uri"] for item in files] == [
+        "sftp://lab/SAL_010_01.res",
+        "sftp://lab/SAL_010.cellpy",
+        "sftp://lab/SAL_010_00.res",
+    ]
+    secondary = files[0]
+    assert secondary["kind"] == "raw"
+    assert secondary["order"] == 1
+    assert secondary["loader"] == "arbin_res"
+    assert "is_primary" not in secondary
+    assert "mtime" not in secondary
+    archive = files[1]
+    assert archive["kind"] == "cellpy"
+    assert archive["loader"] == "cellpy"
+    primary = files[2]
+    assert primary["order"] == 0
+    assert primary["size"] == 100
+    assert primary["mtime"] == "2024-01-01T00:00:00Z"
+    assert primary["checksum"] == "aaa"
+    assert primary["location"] == "lab-nas"
+    assert primary["loader"] == "arbin_res"
+
+
+def test_journal_row_files_absent_is_empty() -> None:
+    assert journal_row_files(ROW_OTHER) == ()
+    assert journal_row_files({"files": None}) == ()
+    assert journal_row_files({"files": "nope"}) == ()
+    assert journal_row_files({"files": []}) == ()
+
+
 # -- source plumbing (no cellpy needed) ----------------------------------------
 
 
@@ -265,6 +330,45 @@ def test_conformance_kit_passes(source: BatBaseMetadataSource) -> None:
     assert record.source_uri == f"{BASE}api/{JOURNAL_ENDPOINT}/42/"
     assert record.cell["mass"] == 1.2345
     assert record.raw["name"] == "20240101_SAL_010_cc_01"
+    assert [ref.uri for ref in record.raw_files()] == [
+        "sftp://lab/SAL_010_00.res",
+        "sftp://lab/SAL_010_01.res",
+    ]
+    assert record.cellpy_file() is not None
+    assert record.cellpy_file().uri == "sftp://lab/SAL_010.cellpy"
+
+
+@needs_cellpy
+def test_files_become_filerefs_in_batbase_order(source: BatBaseMetadataSource) -> None:
+    from cellpy.readers.metadata_sources import FileRef, MetaQuery
+
+    (record,) = source.fetch(MetaQuery(key="SAL_010", kind="tag", project="3"))
+    assert all(isinstance(ref, FileRef) for ref in record.files)
+    assert [ref.uri for ref in record.files] == [
+        "sftp://lab/SAL_010_01.res",
+        "sftp://lab/SAL_010.cellpy",
+        "sftp://lab/SAL_010_00.res",
+    ]
+    assert [ref.uri for ref in record.raw_files()] == [
+        "sftp://lab/SAL_010_00.res",
+        "sftp://lab/SAL_010_01.res",
+    ]
+    assert record.cellpy_file() is not None
+    assert record.cellpy_file().uri == "sftp://lab/SAL_010.cellpy"
+    by_uri = {ref.uri: ref for ref in record.files}
+    assert by_uri["sftp://lab/SAL_010_00.res"].loader == "arbin_res"
+    assert by_uri["sftp://lab/SAL_010_01.res"].loader == "arbin_res"
+    assert by_uri["sftp://lab/SAL_010.cellpy"].loader == "cellpy"
+    assert by_uri["sftp://lab/SAL_010_00.res"].location == "lab-nas"
+    assert by_uri["sftp://lab/SAL_010_00.res"].size == 100
+
+
+@needs_cellpy
+def test_row_without_files_yields_empty_files(source: BatBaseMetadataSource) -> None:
+    from cellpy.readers.metadata_sources import MetaQuery
+
+    (record,) = source.fetch(MetaQuery(key="43", kind="external_id"))
+    assert record.files == ()
 
 
 @needs_cellpy

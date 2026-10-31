@@ -43,6 +43,12 @@ ife-bat/batbase#473; until they land, records carry what is there):
     comments                       -> comment
     test_schedule                  -> schedule_file_name
     instrument                     -> (kept in MetaRecord.raw only; source_type is provenance)
+
+File pointers (cellpy >= 2.1.5.post7, jepegit/cellpy#1119). ``journal_row_files``
+maps ``files[]`` to ``FileRef`` kwargs: ``instrument_loader`` → ``loader``,
+empty ``uri`` dropped, BatBase order kept. ``is_primary=False`` raw files stay
+in the set (``is_primary`` is not a ``FileRef`` field). A row with no ``files``
+yields ``()``.
 """
 
 from __future__ import annotations
@@ -168,6 +174,45 @@ def journal_row_to_meta(row: Mapping[str, Any]) -> tuple[dict[str, Any], dict[st
     return cell, test
 
 
+def journal_row_files(row: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
+    """Map one journal row's ``files[]`` to ``FileRef`` keyword dicts.
+
+    Pure and cellpy-free. Missing ``files``, ``None``, or a non-list yields
+    ``()``. Entries that are not mappings, or whose ``uri`` is empty, are
+    skipped. Order is BatBase's list order. ``is_primary`` is not copied:
+    a raw file with ``is_primary=False`` is still included.
+    """
+    payload = row.get("files")
+    if not isinstance(payload, list):
+        return ()
+    files: list[dict[str, Any]] = []
+    for entry in payload:
+        if not isinstance(entry, Mapping):
+            continue
+        uri = _text(entry.get("uri"))
+        if not uri:
+            continue
+        mapped: dict[str, Any] = {
+            "kind": _text(entry.get("kind")) or "",
+            "uri": uri,
+            "order": int(entry.get("order") or 0),
+        }
+        size = entry.get("size")
+        if size is not None and size != "":
+            mapped["size"] = size
+        for source_key, target in (
+            ("mtime", "mtime"),
+            ("checksum", "checksum"),
+            ("instrument_loader", "loader"),
+            ("location", "location"),
+        ):
+            text = _text(entry.get(source_key))
+            if text is not None:
+                mapped[target] = text
+        files.append(mapped)
+    return tuple(files)
+
+
 def _nominal_capacity(row: Mapping[str, Any]) -> tuple[float | None, str | None]:
     unit = _text(row.get("nominal_capacity_unit"))
     value = _float(row.get("nominal_capacity_value"))
@@ -259,7 +304,7 @@ class BatBaseMetadataSource:
         return rows
 
     def _record(self, row: Mapping[str, Any]) -> MetaRecord:
-        from cellpy.readers.metadata_sources import MetaRecord
+        from cellpy.readers.metadata_sources import FileRef, MetaRecord
 
         cell, test = journal_row_to_meta(row)
         row_id = row.get("id")
@@ -272,6 +317,7 @@ class BatBaseMetadataSource:
             cell=cell,
             test=test,
             raw=dict(row),
+            files=tuple(FileRef(**kwargs) for kwargs in journal_row_files(row)),
         )
 
     # -- contract ---------------------------------------------------------

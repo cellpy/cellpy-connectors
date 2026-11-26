@@ -48,6 +48,9 @@ from cellpy_connectors.registry import ConnectorSpec, register
 CONNECTOR_NAME = "batbase"
 DEFAULT_URL = "http://localhost:8000"
 URL_ENV_VAR = "CELLPY_BATBASE_URL"
+# A bearer token issued elsewhere (e.g. by a BatBase worker for one job).
+# Used as is: no client credentials, no refresh.
+TOKEN_ENV_VAR = "CELLPY_BATBASE_TOKEN"
 TOKEN_PATH = "o/token/"
 API_PREFIX = "api/"
 DEFAULT_SCOPE = "read"
@@ -120,6 +123,9 @@ class BatBaseClient(ApiClientBase):
         scope: OAuth2 scope requested for the token. ``"read"`` by default;
             ``"read write"`` needs membership of BatBase's ``api-write`` group.
         anonymous: skip authentication entirely (local dev server).
+        access_token: a bearer token issued elsewhere; default
+            ``$CELLPY_BATBASE_TOKEN``. When set, client credentials are not
+            used and the token is never refreshed.
         timeout / session: see `ApiClientBase`.
 
     Raises:
@@ -137,11 +143,13 @@ class BatBaseClient(ApiClientBase):
         client_secret: str | SecretStr | None = None,
         scope: str = DEFAULT_SCOPE,
         anonymous: bool = False,
+        access_token: str | None = None,
         timeout: float = 10.0,
         session: SupportsRequest | None = None,
         clock=time.monotonic,
     ) -> None:
         super().__init__(resolve_base_url(base_url), timeout=timeout, session=session)
+        self._static_token = access_token or os.environ.get(TOKEN_ENV_VAR) or None
         self._client_id = client_id
         self._client_secret = client_secret
         self.scope = scope
@@ -197,6 +205,8 @@ class BatBaseClient(ApiClientBase):
 
     def token(self) -> str:
         """A fresh access token (cached until close to expiry)."""
+        if self._static_token:
+            return self._static_token
         now = self._clock()
         if self._token is not None and self._token.is_fresh(now):
             return self._token.access_token
@@ -221,7 +231,7 @@ class BatBaseClient(ApiClientBase):
             response = self.session.request(method, url, headers=headers, **kwargs)
         except requests.RequestException as exc:
             raise ConnectorError(f"Request to {url} failed: {exc}") from exc
-        if response.status_code == 401 and not self.anonymous and retry_auth:
+        if response.status_code == 401 and not self.anonymous and retry_auth and not self._static_token:
             # Token revoked or the secret rotated mid-session: one fresh token, one retry.
             self.invalidate_token()
             return self._request(method, path, retry_auth=False, **kwargs)
@@ -244,6 +254,18 @@ class BatBaseClient(ApiClientBase):
         one object.
         """
         response = self.request("GET", api_path(endpoint), params=params or None)
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ConnectorError(f"Non-JSON response from {response.url}") from exc
+
+    def post(self, endpoint: str, payload: Any) -> Any:
+        """POST JSON to one API endpoint and return the decoded JSON.
+
+        Needs a token with the ``write`` scope (``scope="read write"``). Not
+        retried: BatBase writes are not all idempotent.
+        """
+        response = self.request("POST", api_path(endpoint), json=payload)
         try:
             return response.json()
         except ValueError as exc:

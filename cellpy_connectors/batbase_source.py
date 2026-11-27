@@ -138,7 +138,9 @@ def journal_row_to_meta(row: Mapping[str, Any]) -> tuple[dict[str, Any], dict[st
         ("loading", "active_electrode_loading"),
     ):
         value = _float(row.get(source_key))
-        if value is not None:
+        # 0 or less is "not known": older BatBase reports mass 0 for cells
+        # without electrodes, and cellpy divides by it.
+        if value is not None and value > 0:
             cell[target] = value
 
     nom_cap, specifics = _nominal_capacity(row)

@@ -137,6 +137,42 @@ or rejected credentials raise `BatBaseAuthError` with the fix in the message.
 `api-write` group. See
 [`.issueflows/04-designs-and-guides/batbase-client.md`](.issueflows/04-designs-and-guides/batbase-client.md).
 
+### Process tests and post check-up readings
+
+`process` loads BatBase tests' raw files with cellpy and posts one value per
+reading back to BatBase (`/api/test-observation/bulk/`): `capacity` and
+`charge_capacity` (Ah), `dc_resistance` (mOhm), `ocv` (V). It needs a cellpy
+with `cellpy.utils.readings` and a BatBase with that endpoint.
+
+```bash
+export CELLPY_BATBASE_PATH_MAP="smb://lab-share/pec=/data/raw/pec"   # stored URI prefix -> local folder
+uv run cellpy connectors batbase process 321 322 323 --dry-run       # load and show, post nothing
+uv run cellpy connectors batbase process 321 322 323                 # needs the write scope
+uv run cellpy connectors batbase process 321 --json                  # one JSON object per test
+```
+
+For each test id it reads `api/test-experiment/<id>/`, takes the raw files
+(`kind=raw`, in `order`) and their `instrument_loader`, loads them with
+`cellpy.get(..., instrument=loader)`, and posts the readings with `--source`
+(default `cellpy-checkup`). Posting again updates the same readings. A test
+with no raw file, no loader or a missing file is reported and the others go
+on; the exit code is 1 if any test failed.
+
+`CELLPY_BATBASE_TOKEN` takes a bearer token issued elsewhere instead of client
+credentials. BatBase's own worker uses it to run `process` as the user who
+pressed "Process with cellpy".
+
+From Python:
+
+```python
+from cellpy_connectors.batbase import BatBaseClient
+from cellpy_connectors.batbase_results import parse_path_map, process_test
+
+client = BatBaseClient(scope="read write")
+result = process_test(client, 321, path_map=parse_path_map("smb://lab-share/pec=/data/raw/pec"))
+print(result.ok, result.readings, result.error)
+```
+
 ## Tests
 
 ```bash

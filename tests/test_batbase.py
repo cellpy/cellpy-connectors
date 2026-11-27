@@ -90,7 +90,7 @@ class _Clock:
 
 @pytest.fixture
 def no_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for var in (CLIENT_ID_FIELD.env_var, CLIENT_SECRET_FIELD.env_var, "CELLPY_BATBASE_URL"):
+    for var in (CLIENT_ID_FIELD.env_var, CLIENT_SECRET_FIELD.env_var, "CELLPY_BATBASE_URL", "CELLPY_BATBASE_TOKEN"):
         monkeypatch.delenv(var, raising=False)
     # keyring must not be consulted in tests.
     monkeypatch.setattr("cellpy_connectors.credentials._keyring_get", lambda *_: None)
@@ -376,3 +376,30 @@ def test_basic_auth_header_shape_matches_batbase_scripts() -> None:
     expected = base64.b64encode(b"cid:shh").decode()
     prepared = requests.Request("POST", TOKEN_URL, auth=("cid", "shh")).prepare()
     assert prepared.headers["Authorization"] == f"Basic {expected}"
+
+
+# -- pre-issued token ------------------------------------------------------
+
+
+def test_pre_issued_token_skips_credentials_and_is_not_refreshed(no_env, monkeypatch) -> None:
+    monkeypatch.setenv("CELLPY_BATBASE_TOKEN", "job-token")
+    session = _ScriptedSession(
+        _json_response(200, {"ok": True}, f"{BASE}/api/x/"),
+        _json_response(401, {"detail": "expired"}, f"{BASE}/api/x/"),
+    )
+    client = BatBaseClient(BASE, session=session)
+
+    assert client.get("x") == {"ok": True}
+    with pytest.raises(BatBaseAuthError):
+        client.get("x")
+    assert session.token_calls == []
+    assert [c.bearer for c in session.api_calls] == ["job-token", "job-token"]
+
+
+def test_post_sends_json_with_the_token(no_env) -> None:
+    session = _ScriptedSession(_token_response(), _json_response(200, {"created": 1}, f"{BASE}/api/y/"))
+    client = _client(session, scope="read write")
+
+    assert client.post("y", {"a": 1}) == {"created": 1}
+    call = session.api_calls[0]
+    assert (call.method, call.kwargs["json"], call.bearer) == ("POST", {"a": 1}, "tok-1")
